@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 i3ipc = "0.10.1"
 sysinfo = "0.29.10"
+
+[profile.release]
+strip = true

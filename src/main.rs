@@ -10,6 +10,7 @@ use i3ipc::event::inner::WorkspaceChange;
 use sysinfo::{System, SystemExt};
 
 use std::process::Command;
+use std::{thread, time};
 
 
 fn workspace_is_empty(connection: &mut I3Connection) -> bool {
@@ -29,7 +30,7 @@ fn workspace_is_empty(connection: &mut I3Connection) -> bool {
 
 fn set_bar_hidden(state: bool) -> bool {
     let cmd = if state { "hide" } else { "show" };
-    Command::new("polybar-msg").arg("cmd").arg(cmd).output().expect("Could not communicate with polybar!");
+    let _ = Command::new("polybar-msg").arg("cmd").arg(cmd).output();
 
     state
 }
@@ -37,18 +38,22 @@ fn set_bar_hidden(state: bool) -> bool {
 
 fn main() {
     let s = System::new_all();
-    if s.processes_by_exact_name("i3").next().is_none() {
-        panic!("i3 is not running!");
-    }
-    if s.processes_by_exact_name("polybar").next().is_none() {
-        panic!("polybar is not running!");
-    }
     if s.processes_by_exact_name("polybar-peekabo").count() > 1 {
         panic!("polybar-peekaboo is already running!");
     }
 
-    let mut connection = I3Connection::connect().expect("Could not communicate with i3!");
-    let mut listener = I3EventListener::connect().expect("Could not communicate with i3!");
+    let mut connection = loop {
+        match I3Connection::connect() {
+            Ok(c) => break c,
+            Err(_) => thread::sleep(time::Duration::from_millis(500)),
+        }
+    };
+    let mut listener = loop {
+        match I3EventListener::connect() {
+            Ok(c) => break c,
+            Err(_) => thread::sleep(time::Duration::from_millis(500)),
+        }
+    };
     let subs = [Subscription::Workspace, Subscription::Window];
     listener.subscribe(&subs).expect("Could not communicate with i3!");
 
